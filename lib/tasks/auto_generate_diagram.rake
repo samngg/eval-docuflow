@@ -2,7 +2,7 @@
 
 # TODO: This is a temporary fix so that rails-erd picks up all of our models.
 # https://github.com/voormedia/rails-erd/issues/322
-if Rails.env.development?
+if Rails.env.development? && defined?(RailsERD)
   RailsERD.load_tasks
   Rake::Task["erd:load_models"].clear
 
