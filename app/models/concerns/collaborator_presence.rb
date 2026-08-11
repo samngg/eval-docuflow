@@ -15,8 +15,8 @@ module CollaboratorPresence
   def self.with_presence_data(documents)
     documents.map do |doc|
       collaborators = Collaborator.where(document_id: doc.id)
-                                   .where("last_seen_at > ?", PRESENCE_TIMEOUT.ago)
-                                   .includes(:user)
+        .where("last_seen_at > ?", PRESENCE_TIMEOUT.ago)
+        .includes(:user)
 
       {
         document: doc,

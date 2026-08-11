@@ -1,6 +1,7 @@
 class User < ApplicationRecord
   include Users::Base
   include Roles::User
+
   # 🚅 add concerns above.
 
   # 🚅 add belongs_to associations above.
@@ -20,4 +21,11 @@ class User < ApplicationRecord
   # 🚅 add delegations above.
 
   # 🚅 add methods above.
+  def avatar_url
+    if email.present?
+      require "digest"
+      hash = Digest::MD5.hexdigest(email.downcase)
+      "https://www.gravatar.com/avatar/#{hash}"
+    end
+  end
 end
