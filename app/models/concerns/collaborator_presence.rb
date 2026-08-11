@@ -6,6 +6,8 @@ module CollaboratorPresence
   PRESENCE_TIMEOUT = 5.minutes
 
   included do
+    has_many :collaborators, dependent: :destroy
+
     scope :with_active_presence, -> {
       joins(:collaborators)
         .where("collaborators.last_seen_at > ?", PRESENCE_TIMEOUT.ago)

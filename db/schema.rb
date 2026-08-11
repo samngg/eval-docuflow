@@ -84,6 +84,18 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_175505) do
     t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable"
   end
 
+  create_table "collaborators", force: :cascade do |t|
+    t.bigint "document_id", null: false
+    t.bigint "user_id", null: false
+    t.string "role"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "last_seen_at"
+    t.index ["document_id"], name: "index_collaborators_on_document_id"
+    t.index ["last_seen_at"], name: "index_collaborators_on_last_seen_at"
+    t.index ["user_id"], name: "index_collaborators_on_user_id"
+  end
+
   create_table "integrations_stripe_installations", force: :cascade do |t|
     t.bigint "team_id", null: false
     t.bigint "oauth_stripe_account_id", null: false
