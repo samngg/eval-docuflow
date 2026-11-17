@@ -1,9 +1,8 @@
 require "test_helper"
 require "capybara/email"
 require "support/waiting"
-require "minitest/retry"
+require "support/system_test_config"
 
-Minitest::Retry.use!(retry_count: 6, verbose: true, exceptions_to_retry: [Net::ReadTimeout, Capybara::ModalNotFound])
 OmniAuth.config.test_mode = true
 
 # Configure Capybara with either cuprite or selenium based on what gems are installed
@@ -27,7 +26,7 @@ else # Selenium
   Capybara.default_driver = ENV["MAGIC_TEST"].present? ? :selenium_chrome : :selenium_chrome_headless
 end
 
-Capybara.default_max_wait_time = ENV.fetch("CAPYBARA_DEFAULT_MAX_WAIT_TIME", ENV["MAGIC_TEST"].present? ? 5 : 15)
+SystemTestConfig.apply!
 
 Capybara.register_server :puma do |app, port, host|
   require "rack/handler/puma"
@@ -52,6 +51,33 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     @deprecator ||= ActiveSupport::Deprecation.new("2.0", "BulletTrain")
   end
   delegate :deprecator, to: :class
+
+  class_attribute :stability_profile, instance_accessor: false, default: nil
+
+  def self.stability(level = nil)
+    self.stability_profile = level if level
+    stability_profile
+  end
+
+  def self.test(name, stability: nil, &block)
+    effective_stability = stability || stability_profile
+    if effective_stability&.to_sym == :high_friction && block
+      super(name) do
+        high_friction do
+          instance_exec(&block)
+        end
+      end
+    else
+      super(name, &block)
+    end
+  end
+
+  def high_friction(wait_time = SystemTestConfig.robust_wait_time, &block)
+    raise ArgumentError, "high_friction requires a block" unless block_given?
+
+    elevated_wait_time = [Capybara.default_max_wait_time, wait_time].max
+    Capybara.using_wait_time(elevated_wait_time, &block)
+  end
 
   if use_cuprite?
     driven_by :bt_cuprite
@@ -121,7 +147,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   #     p device_name
   #     p display_details
   #   end
-  def self.device_test(name, &block)
+  def self.device_test(name, stability: nil, &block)
     # All this is because Rails' `test` method uses `define_method`, which will report this file as the `source_location`
     # and not the target test file where the test is actually defined.
     #
@@ -131,17 +157,19 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     # So we inject a module that we define methods via `test` to pass the block to, then we override that
     # via `class_eval` to point it to the correct location.
     location = caller_locations(1, 1).first
+    effective_stability = stability || stability_profile
 
     name = name.remove(/[^\w ]/) # `def` is stricter than `define_method` so we have to scrub characters.
     @device_test_methods ||= Module.new.tap { include it }
 
     @@test_devices.each_key do |device_name|
       test_name = ActiveSupport::Testing::Declarative.instance_method(:test).bind_call(@device_test_methods, "#{name} on a #{device_name}", &block)
+      invocation = (effective_stability&.to_sym == :high_friction) ? "high_friction { super }" : "super"
 
       # Standard recommends __FILE__ and __LINE__ + 1 here, which points to `application_system_test_case.rb`. It's wrong.
       # TODO: Figure out why the browser window opens if `resize_display` is done in `setup`.
       class_eval <<~RUBY, location.path, location.lineno # standard:disable Style/EvalWithLocation
-        def #{test_name}; resize_display; super; end # Use single line to match source line numbers properly.
+        def #{test_name}; resize_display; #{invocation}; end # Use single line to match source line numbers properly.
       RUBY
     end
   end
