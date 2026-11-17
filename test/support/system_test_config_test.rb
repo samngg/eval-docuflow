@@ -56,21 +56,25 @@ class SystemTestConfigTest < ActiveSupport::TestCase
   end
 
   test "enforces ROBUST profile automatically when ENV['CI'] is present" do
-    out, err = capture_io do
-      config = SystemTestConfig.apply!(env: {"CI" => "true"})
+    %w[true 1 github_actions].each do |ci_value|
+      out, err = capture_io do
+        config = SystemTestConfig.apply!(env: {"CI" => ci_value})
 
-      assert_equal "ROBUST", config.profile
-      assert config.robust?
-      refute config.fast?
-      assert_equal 15, config.wait_time
-      assert_equal 6, config.retries
-      assert_empty config.warnings
+        assert_equal "ROBUST", config.profile
+        assert config.robust?
+        refute config.fast?
+        assert_equal 15, config.wait_time
+        assert_equal 6, config.retries
+        assert_empty config.warnings
+      end
+
+      assert_equal 15, Capybara.default_max_wait_time
+      assert_equal 6, Minitest::Retry.retry_count
+      assert_equal true, Minitest::Retry.verbose
+      assert_equal [Net::ReadTimeout, Capybara::ModalNotFound], Minitest::Retry.exceptions_to_retry
+      assert_includes out, "Active Test Profile: ROBUST (Wait: 15s, Retries: 6)"
+      assert_equal "", err
     end
-
-    assert_equal 15, Capybara.default_max_wait_time
-    assert_equal 6, Minitest::Retry.retry_count
-    assert_includes out, "Active Test Profile: ROBUST (Wait: 15s, Retries: 6)"
-    assert_equal "", err
   end
 
   test "supports explicit runtime override via TEST_PROFILE=ROBUST locally" do
