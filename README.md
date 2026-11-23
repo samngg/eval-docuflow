@@ -1,3 +1,4 @@
+<!-- Bullet Train Ruby on Rails application template with PostgreSQL, Redis, and Node.js. -->
 # Bullet Train Application Template
 If you're new to Bullet Train, start with the [Bullet Train Developer Documentation](https://bullettrain.co/docs) and the [Getting Started](https://bullettrain.co/docs/getting-started) guide. You should also [join the community Discord server](https://discord.gg/bullettrain)!
 
